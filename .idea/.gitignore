@@ -8,3 +8,9 @@
 /dataSources.local.xml
 # Editor-based HTTP Client requests
 /httpRequests/
+/copilot.data.migration.agent.xml
+/misc.xml
+/modules.xml
+/inspectionProfiles/profiles_settings.xml
+/project-1.iml
+/vcs.xml
