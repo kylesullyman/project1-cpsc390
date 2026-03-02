@@ -1,5 +1,6 @@
 #!CAUSION: NO OTHER IMPORTS ARE ALLOWED!
-import math 
+import math
+
 
 #NOTE: You must use the Node class below to define your nodes
 class Node:
@@ -72,51 +73,166 @@ class ReachedSet:
 
 class Frontier:
     # priority queue format
-    # 0th index as head of queue
+    # 0th index as head of queue (lowest f)
     def __init__(self):
         self.queue = []
 
     def push(self, node):
-        for otherNode in self.queue:
-            if otherNode.evalCost >= node.evalCost:
-                continue
-            else:
-                indexToAppend = self.queue.index(otherNode)
-                self.queue.insert(indexToAppend, node)
-                break
+        if self.is_empty():
+            self.queue.append(node)
+            return
+        for i, other in enumerate(self.queue):
+            if other.f >= node.f:
+                self.queue.insert(i, node)
+                return
+        self.queue.append(node)
+
+    def get_node(self, state):
+        for node in self.queue:
+            if node.state == state:
+                return node
+        return None
 
     def pop(self):
         return self.queue.pop(0)
 
     def peek(self):
-        return self.queue[0]
+        if self.is_empty():
+            return None
+        return self.queue[0].state
 
     def is_empty(self):
         return len(self.queue) == 0
 
-    
+    def contains(self, state):
+        for node in self.queue:
+            if node.state == state:
+                return True
+        return False
 
-#TODO: Compete this
+    def get_cost(self, state):
+        for node in self.queue:
+            if node.state == state:
+                return node.g
+        return float('inf')
+
+
+# Grid movement directions: name -> (dx, dy)
+DIRECTIONS = {
+    'N':  (0,  1),
+    'NE': (1,  1),
+    'E':  (1,  0),
+    'SE': (1, -1),
+    'S':  (0, -1),
+    'SW': (-1, -1),
+    'W':  (-1, 0),
+    'NW': (-1, 1),
+}
+
+# Fragile cells override the movement cost when entered
+FRAGILE_CELLS = {
+    (3, 3): 5.0,
+    (4, 2): 2.0,
+    (3, 4): 3.0,
+}
+
+def get_action_cost(next_state, action):
+    if next_state in FRAGILE_CELLS:
+        return FRAGILE_CELLS[next_state]
+    return 1.41 if len(action) == 2 else 1.0
+
+
 def get_manhattan_distance(pos, goal):
     """|x1-x2| + |y1-y2|"""
+    return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
 
-    pass
 
-#TODO: Complete this
 def get_euclidean_distance(pos, goal):
     """sqrt((x1-x2)^2 + (y1-y2)^2)"""
+    return math.sqrt((pos[0] - goal[0])**2 + (pos[1] - goal[1])**2)
 
-    pass
 
 ## You may define more utility functions here
 
 
+def a_star_search(start_pos, goal_pos, heuristic_type="manhattan", weight=1.0):
+    heuristic_fn = get_manhattan_distance if heuristic_type == "manhattan" else get_euclidean_distance
 
+    h0 = heuristic_fn(start_pos, goal_pos)
+    start_node = Node(start_pos, parent=None, action=None, g=0.0, h=h0, w=weight)
 
-#TODO: Complete this
-def a_star_search(start_pos, goal_pos, heuristic_type="manhattan", weight = 1.0):
+    frontier = Frontier()
+    frontier.push(start_node)
+    nodes_generated = 1
 
-    pass
+    # reached maps each discovered state to the best-known g cost
+    reached = ReachedSet()
+    reached.add(start_node)
+
+    print(f"=== A* Search ({heuristic_type}) ===")
+    print(f"Initial Frontier: [None-->{start_pos}({start_node.g:.2f}, {start_node.f:.2f})]")
+    print()
+
+    step = 0
+    nodes_expanded = 0
+
+    while not frontier.is_empty():
+        node = frontier.pop()
+
+        # Skip stale nodes (a cheaper path to this state was found later)
+        if node.g > reached.get_cost(node.state):
+            continue
+
+        step += 1
+        nodes_expanded += 1
+
+        parent_str = str(node.parent.state) if node.parent else "None"
+        print(f"Step {step}")
+        print(f"Expanded: {parent_str}-->{node.state}(g={node.g:.2f}, f={node.f:.2f})")
+
+        if node.state == goal_pos:
+            path = []
+            cur = node
+            while cur:
+                path.append(cur.state)
+                cur = cur.parent
+            path.reverse()
+            print("\nGoal reached.")
+            print(f"Path: {path}")
+            print(f"Total estimated cost (f=g+h) = {node.g:.2f}")
+            print(f"Nodes expanded = {nodes_expanded}")
+            print(f"Nodes generated = {nodes_generated}")
+            return path
+
+        for action, (dx, dy) in DIRECTIONS.items():
+            nx, ny = node.state[0] + dx, node.state[1] + dy
+            if not (1 <= nx <= 5 and 1 <= ny <= 5):
+                continue
+            next_state = (nx, ny)
+            action_cost = get_action_cost(next_state, action)
+            new_g = node.g + action_cost
+            new_h = heuristic_fn(next_state, goal_pos)
+
+            if not reached.contains(next_state):
+                child = Node(next_state, parent=node, action=action, g=new_g, h=new_h, w=weight)
+                frontier.push(child)
+                reached.add(child)
+                nodes_generated += 1
+            elif new_g < reached.get_cost(next_state):
+                child = Node(next_state, parent=node, action=action, g=new_g, h=new_h, w=weight)
+                frontier.push(child)
+                reached.update(child)
+                nodes_generated += 1
+
+        frontier_str = ", ".join(
+            f"{(n.parent.state if n.parent else None)}-->{n.state}({n.g:.2f}, {n.f:.2f})"
+            for n in frontier.queue
+        )
+        print(f"Frontier: [{frontier_str}]")
+        print()
+
+    print("No solution found.")
+    return None
 
 
 # Test Case (run twice and compare)
