@@ -15,6 +15,61 @@ class Node:
         # evaluation cost for A*
         self.evalCost = self.g + self.h
 
+class ReachedSet:
+    """
+    Lookup table for tracking already-explored states in search algorithms.
+
+    Internally uses a dictionary keyed by state for O(1) average-case
+    add, lookup, and update operations — without using Python's built-in set.
+
+    Structure:
+        _table: dict { state (tuple) -> Node }
+    """
+
+    def __init__(self):
+        self._table = {}      # { state: Node }
+        self._keys = []       # insertion-ordered list of state keys
+
+    def add(self, node):
+        """Mark a state as reached, storing its node."""
+        if node.state not in self._table:
+            self._keys.append(node.state)
+        self._table[node.state] = node
+
+    def contains(self, state):
+        """Return True if state has already been reached."""
+        return state in self._table
+
+    def get(self, state):
+        """Return the Node stored for the given state, or None."""
+        return self._table.get(state, None)
+
+    def get_cost(self, state):
+        """Return the g-cost of the reached node for state, or infinity."""
+        node = self._table.get(state, None)
+        return node.g if node is not None else float('inf')
+
+    def update(self, node):
+        """Replace the stored node for a state (e.g. cheaper path found)."""
+        self._table[node.state] = node
+
+    def remove(self, state):
+        """Remove a state from the reached set (for re-expansion)."""
+        if state in self._table:
+            del self._table[state]
+            self._keys = [k for k in self._keys if k != state]
+
+    def states(self):
+        """Return a list of all reached states in insertion order."""
+        return list(self._keys)
+
+    def __len__(self):
+        return len(self._table)
+
+    def __repr__(self):
+        return f"ReachedSet({list(self._table.keys())})"
+
+
 class Frontier:
     # priority queue format
     # 0th index as head of queue
@@ -32,6 +87,14 @@ class Frontier:
 
     def pop(self):
         return self.queue.pop(0)
+
+    def peek(self):
+        return self.queue[0]
+
+    def is_empty(self):
+        return len(self.queue) == 0
+
+    
 
 #TODO: Compete this
 def get_manhattan_distance(pos, goal):
